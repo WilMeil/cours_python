@@ -1,0 +1,74 @@
+import random
+
+# Chargement des mots de passe faibles depuis un fichier texte
+def charger_mots_de_passe(fichier):
+    try:
+        with open(fichier, 'r') as f:
+            return [ligne.strip() for ligne in f if ligne.strip()]
+    except FileNotFoundError:
+        print("Fichier introuvable. Utilisation de la liste par défaut.")
+        return ["123456", "password", "admin", "123456789", "qwerty",
+                "abc123", "letmein", "welcome", "monkey", "football"]
+
+# Compte le nombre de lettres communes (peu importe la position)
+def lettres_communes(mot1, mot2):
+    return len(set(mot1) & set(mot2))
+
+# Programme principal
+def crackme():
+    mots_de_passe_faibles = charger_mots_de_passe("mots_de_passe.txt")
+    mot_secret = random.choice(mots_de_passe_faibles)
+    historique = []
+
+    print("🔐 Bienvenue dans CrackMe – Trouve le mot de passe faible !")
+    
+    # Demande du nombre d'essais
+    while True:
+        try:
+            limite = int(input("Combien d'essais maximum veux-tu ? (entier > 0) : "))
+            if limite > 0:
+                break
+        except ValueError:
+            pass
+        print("⛔ Entrée invalide. Réessaye.")
+
+    print("Tape 'triche' pour révéler le mot de passe (à des fins de test).\n")
+
+    essais = 0
+    trouve = False
+
+    while essais < limite:
+        tentative = input(f"Essai {essais + 1}/{limite} : ")
+
+        if tentative.lower() == "triche":
+            print(f"🤫 Mot de passe : {mot_secret}")
+            continue
+
+        historique.append(tentative)
+        essais += 1
+
+        if tentative == mot_secret:
+            trouve = True
+            print(f"\n✅ Bravo ! Mot de passe trouvé en {essais} essais.")
+            break
+        else:
+            print("❌ Mauvais mot de passe.")
+            # Fournir un indice :
+            if len(tentative) > len(mot_secret):
+                print("📏 Indice : Le mot de passe est plus court.")
+            elif len(tentative) < len(mot_secret):
+                print("📏 Indice : Le mot de passe est plus long.")
+            if tentative and tentative[0] == mot_secret[0]:
+                print("🔤 Indice : Il commence par la même lettre.")
+            print(f"🔍 Lettres communes : {lettres_communes(tentative, mot_secret)}\n")
+
+    if not trouve:
+        print(f"\n💥 Tu as échoué. Le mot de passe était : {mot_secret}")
+
+    print("\n📝 Historique de tes tentatives :")
+    for i, mot in enumerate(historique, 1):
+        print(f"{i}. {mot}")
+
+# Lancer le script
+if __name__ == "__main__":
+    crackme()
