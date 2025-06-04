@@ -1,0 +1,59 @@
+import re
+from collections import Counter
+
+with open("auth.log", "r") as file:
+    log_lines = file.readlines()
+
+failed_lines = [line for line in log_lines if "Failed password" in line]
+
+ip_pattern = re.compile(r"from (\d{1,3}(?:\.\d{1,3}){3})")
+ips = [ip_pattern.search(line).group(1) for line in failed_lines if ip_pattern.search(line)]
+
+ip_counts = Counter(ips)
+
+print("Top 5 IPs avec tentatives échouées :")
+for ip, count in ip_counts.most_common(5):
+    print(f"{ip}: {count} tentatives")
+
+
+import matplotlib.pyplot as plt
+
+top_ips = ip_counts.most_common(5)
+ips = [ip for ip, count in top_ips]
+counts = [count for ip, count in top_ips]
+
+plt.figure(figsize=(10, 6))
+plt.bar(ips, counts, color='red')
+plt.title("Top 5 IPs avec tentatives SSH échouées")
+plt.xlabel("Adresses IP")
+plt.ylabel("Nombre de tentatives échouées")
+plt.grid(axis='y')
+plt.tight_layout()
+plt.show()
+
+
+accepted_lines = [line for line in log_lines if "Accepted password" in line]
+accepted_ips = [ip_pattern.search(line).group(1) for line in accepted_lines if ip_pattern.search(line)]
+accepted_counts = Counter(accepted_ips)
+
+print("\nComparaison IPs ayant échoué et réussi :")
+for ip in ip_counts:
+    if ip in accepted_counts:
+        print(f"{ip} - Échecs: {ip_counts[ip]}, Succès: {accepted_counts[ip]}")
+
+
+import csv
+
+with open("failed_attempts.csv", "w", newline="") as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(["IP", "Tentatives échouées"])
+    for ip, count in ip_counts.most_common():
+        writer.writerow([ip, count])
+
+
+while True:
+    query = input("\nEntrez une IP à vérifier (ou 'exit' pour quitter) : ")
+    if query == "exit":
+        break
+    print(f"Échecs : {ip_counts.get(query, 0)}")
+    print(f"Succès : {accepted_counts.get(query, 0)}")
