@@ -1,0 +1,57 @@
+import psutil
+import os
+import time
+import platform
+
+def clear_screen():
+    os.system('cls' if platform.system() == 'Windows' else 'clear')
+
+def ascii_bar(percent, length=20):
+    filled = int(percent / 100 * length)
+    return '█' * filled + '-' * (length - filled)
+
+def display_dashboard():
+    try:
+        while True:
+            clear_screen()
+            print("📈 Tableau de bord système (actualisé toutes les 5s)\n")
+            print("=== CPU ===")
+            print(f"Utilisation totale : {psutil.cpu_percent()}%")
+            per_cpu = psutil.cpu_percent(percpu=True)
+            for i, p in enumerate(per_cpu):
+                print(f"  Coeur {i}: {ascii_bar(p)} {p:.1f}%")
+            print("\n=== Mémoire ===")
+            mem = psutil.virtual_memory()
+            print(f"  Totale : {mem.total / 1e9:.2f} GB")
+            print(f"  Utilisée : {mem.used / 1e9:.2f} GB")
+            print(f"  Libre : {mem.available / 1e9:.2f} GB")
+            print("\n=== Disque ===")
+            for part in psutil.disk_partitions():
+                try:
+                    usage = psutil.disk_usage(part.mountpoint)
+                    print(f"  {part.device} ({part.mountpoint}) : {usage.percent}% utilisé")
+                except PermissionError:
+                    continue
+            print("\n=== Réseau (global) ===")
+            net = psutil.net_io_counters()
+            print(f"  Envoyés : {net.bytes_sent / 1e6:.2f} MB | Reçus : {net.bytes_recv / 1e6:.2f} MB")
+            print("\n=== Réseau (interfaces) ===")
+            per_nic = psutil.net_io_counters(pernic=True)
+            for nic, stats in per_nic.items():
+                print(f"  {nic} - Envoyés : {stats.bytes_sent / 1e6:.2f} MB, Reçus : {stats.bytes_recv / 1e6:.2f} MB")
+            if hasattr(psutil, "sensors_temperatures"):
+                temps = psutil.sensors_temperatures()
+                if temps:
+                    print("\n=== Températures CPU ===")
+                    for name, entries in temps.items():
+                        for entry in entries:
+                            print(f"  {entry.label or name}: {entry.current}°C")
+            with open("system_log.csv", "a") as f:
+                f.write(f"{time.ctime()},{psutil.cpu_percent()},{mem.used},{net.bytes_sent},{net.bytes_recv}\n")
+            print("\nTapez Ctrl+C pour quitter.")
+            time.sleep(5)
+    except KeyboardInterrupt:
+        print("\nSortie propre du programme.")
+
+if __name__ == '__main__':
+    display_dashboard()

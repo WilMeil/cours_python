@@ -1,0 +1,78 @@
+import re
+import pandas as pd
+import matplotlib.pyplot as plt
+
+
+def parse_log_line(line):
+    regex = re.compile(
+        r'(?P<ip>\d+\.\d+\.\d+\.\d+)\s.*?\[(?P<datetime>[^\]]+)\]\s"(?P<method>\w+)\s(?P<url>[^\s]+).*?"\s(?P<status>\d+)\s\d+\s"[^"]*"\s"(?P<user_agent>[^"]+)"'
+    )
+    match = regex.match(line)
+    if match:
+        return match.groupdict()
+    return None
+
+def load_log(filepath):
+    with open(filepath, 'r', encoding='utf-8', errors='ignore') as f:
+        parsed = [parse_log_line(line) for line in f]
+    parsed_clean = [entry for entry in parsed if entry]  # remove malformed lines
+    df = pd.DataFrame(parsed_clean)
+    df['status'] = df['status'].astype(int)
+    return df
+
+
+def filter_404(df):
+    df_404 = df[df['status'] == 404]
+    print(f"\nNombre total d'erreurs 404 : {len(df_404)}")
+    return df_404
+
+
+def top_404_ips(df_404):
+    top_ips = df_404['ip'].value_counts().head(5)
+    print("\nTop 5 IPs fautives :\n", top_ips)
+    return top_ips
+
+
+def plot_top_ips(top_ips):
+    plt.figure(figsize=(10, 6))
+    top_ips.plot(kind='bar', color='salmon')
+    plt.title("Top 5 des IPs causant des erreurs 404")
+    plt.xlabel("Adresse IP")
+    plt.ylabel("Nombre d'erreurs 404")
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.grid(True, axis='y', linestyle='--', alpha=0.7)
+    plt.show()
+
+
+def detect_bots(df_404):
+    bot_keywords = ['bot', 'crawler', 'spider']
+    is_bot = df_404['user_agent'].str.lower().str.contains('|'.join(bot_keywords))
+    df_bots = df_404[is_bot]
+    percent = (len(df_bots) / len(df_404)) * 100
+    print(f"\n% d'erreurs 404 provenant de bots : {percent:.2f}%")
+    print("\nExemples d'IPs de bots :\n", df_bots['ip'].value_counts().head())
+    return df_bots
+
+
+def main():
+    filepath = 'access.log'
+    df = load_log(filepath)
+    print("\nAperçu des données :")
+    print(df.head())
+
+    df_404 = filter_404(df)
+    top_ips = top_404_ips(df_404)
+    plot_top_ips(top_ips)
+    
+    df_bots = detect_bots(df_404)
+
+
+    print("\nDiscussion finale :")
+    print("- Les IPs récurrentes peuvent être bannies via un firewall ou fail2ban.")
+    print("- Un monitoring régulier permettrait d'automatiser cette détection.")
+    print("- Une alerte peut être générée si une IP dépasse un seuil de 404.")
+    print("- Les bots identifiés peuvent être bloqués via robots.txt ou règles Apache/Nginx.")
+
+if __name__ == '__main__':
+    main()
